@@ -1,9 +1,13 @@
 import { type NextPage } from "next";
+import { signIn, signOut, useSession } from "next-auth/react";
 import Head from "next/head";
 import Link from "next/link";
-import { signIn, signOut, useSession } from "next-auth/react";
+import React from "react";
+import Input from "~/components/Input";
+import Spinner from "~/components/Spinner";
 
 import { api } from "~/utils/api";
+import trpcErrorUtils from "~/utils/trpcErrorUtils";
 
 const Home: NextPage = () => {
   const hello = api.example.hello.useQuery({ text: "from tRPC" });
@@ -49,6 +53,8 @@ const Home: NextPage = () => {
               {hello.data ? hello.data.greeting : "Loading tRPC query..."}
             </p>
             <AuthShowcase />
+            {/* <MutationShowcase /> */}
+            {/* <QueryShowcase /> */}
           </div>
         </div>
       </main>
@@ -63,7 +69,7 @@ const AuthShowcase: React.FC = () => {
 
   const { data: secretMessage } = api.example.getSecretMessage.useQuery(
     undefined, // no input
-    { enabled: sessionData?.user !== undefined },
+    { enabled: sessionData?.user !== undefined }
   );
 
   return (
@@ -78,6 +84,63 @@ const AuthShowcase: React.FC = () => {
       >
         {sessionData ? "Sign out" : "Sign in"}
       </button>
+    </div>
+  );
+};
+
+const MutationShowcase: React.FC = () => {
+  const utils = api.useContext();
+  const [userMessage, setUserMessage] = React.useState<string>("");
+
+  const exampleMutation = api.example.create.useMutation({
+    onSuccess: async () => {
+      await utils.example.getAll.invalidate();
+    },
+  });
+
+  const error = trpcErrorUtils.parseMessage(exampleMutation.error?.message);
+
+  const handleClick = () => {
+    console.log("mutate");
+    exampleMutation.mutate({ title: userMessage });
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <Input
+        label="Your message"
+        placeholder="Type something..."
+        value={userMessage}
+        onChange={setUserMessage}
+      />
+      <div>
+        <button
+          type="button"
+          className="items-center rounded-full bg-purple-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-purple-800 focus:outline-none focus:ring-4 focus:ring-purple-300 dark:bg-purple-600 dark:hover:bg-purple-700 dark:focus:ring-purple-800"
+          onClick={handleClick}
+          disabled={exampleMutation.isLoading}
+        >
+          {exampleMutation.isLoading ? <Spinner /> : null}
+          {exampleMutation.isLoading ? "Loading..." : "Create new post"}
+        </button>
+      </div>
+      {error ? (
+        <p className="text-sm text-red-500">{error[0]?.message}</p>
+      ) : null}
+    </div>
+  );
+};
+
+const QueryShowcase: React.FC = () => {
+  const { data: posts } = api.example.getAll.useQuery();
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-4">
+      {posts?.map((post) => (
+        <p className="text-center text-2xl text-white" key={post.id}>
+          {post.title}
+        </p>
+      ))}
     </div>
   );
 };

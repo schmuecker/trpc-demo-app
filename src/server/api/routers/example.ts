@@ -2,8 +2,8 @@ import { z } from "zod";
 
 import {
   createTRPCRouter,
-  publicProcedure,
   protectedProcedure,
+  publicProcedure,
 } from "~/server/api/trpc";
 
 export const exampleRouter = createTRPCRouter({
@@ -22,4 +22,17 @@ export const exampleRouter = createTRPCRouter({
   getSecretMessage: protectedProcedure.query(() => {
     return "you can now see this secret message!";
   }),
+
+  create: publicProcedure
+    .input(
+      z.object({
+        title: z.string().max(40),
+      })
+    )
+    .mutation(({ input, ctx }) => {
+      const { title } = input;
+      return ctx.prisma.example.create({
+        data: { title },
+      });
+    }),
 });
